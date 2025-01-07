@@ -1,0 +1,6 @@
+requests>=2.31.0
+pandas>=2.0.3
+openpyxl>=3.1.2
+QtPy>=2.4.1
+PyQt6>=6.7.0
+XlsxWriter>=3.2.0
