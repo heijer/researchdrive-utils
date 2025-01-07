@@ -14,6 +14,8 @@ class MainWindow(QMainWindow):
     config = None
     projectfolder_name = None
     dry_run_txt = ''
+    privileges_txt = ''
+    privileges = True
 
     def __init__(self, config=None):
         super().__init__()
@@ -22,6 +24,13 @@ class MainWindow(QMainWindow):
         api_url = 'https://{}/dashboard/api/'.format(config['API']['environment_domain'])
         api_key  = config['API']['key']
         self.RD_API = ResearchDrive(url=api_url, token=api_key)
+
+        contracts_df = self.RD_API.get_contracts()
+        if contracts_df.empty:
+            logging.warning('API user has no privileges to create project folders')
+            self.privileges = False
+            self.privileges_txt = '(insufficient privileges)'
+
         if 'dry_run' in config['API']:
             self.RD_API.dry_run = config['API']['dry_run'] == 'True'
             if self.RD_API.dry_run:
@@ -113,10 +122,14 @@ class MainWindow(QMainWindow):
         self.contract_widget = QComboBox()
         contracts_df = self.RD_API.get_contracts()
         contract_items = []
-        if 'items' in self.config['CONTRACT']:
-            contract_items = [item for item in self.config['CONTRACT']['items'].split(',') if item in contracts_df.contract_id.values.tolist()]
-        if len(contract_items) == 0:
-            contract_items = contracts_df.contract_id.values.tolist()
+        if contracts_df.empty:
+            logging.error('Research Drive user has no privileges to create project folders')
+            contract_items = ['No privileges']
+        else:
+            if 'items' in self.config['CONTRACT']:
+                contract_items = [item for item in self.config['CONTRACT']['items'].split(',') if item in contracts_df.contract_id.values.tolist()]
+            if len(contract_items) == 0:
+                contract_items = contracts_df.contract_id.values.tolist()
         self.contract_widget.addItems(contract_items)
 
         horizontal_layout.addWidget(contract_label)
@@ -161,11 +174,10 @@ class MainWindow(QMainWindow):
             project_name = re.sub(r'(?<=\w)\W+(?=\w)', '-', project_name)
             lst.append(project_name)
         self.projectfolder_name = "_".join(lst)
-        if elements_count == 1:
-            self.create_button.setText('Create projectfolder "{}" {}'.format(self.projectfolder_name, self.dry_run_txt))
+        self.create_button.setText('Create projectfolder "{}" {} {}'.format(self.projectfolder_name, self.dry_run_txt, self.privileges_txt))
+        if elements_count == 1 and self.privileges:
             self.create_button.setEnabled(True)
         else:
-            self.create_button.setText('Create projectfolder {}'.format(self.dry_run_txt))
             self.create_button.setEnabled(False)
 
     def create_button_clicked(self, s):
@@ -256,8 +268,8 @@ class MainWindowWindesheim(MainWindow):
             project_name = re.sub(r'(?<=\w)\W+(?=\w)', '-', project_name)
             lst.append(project_name)
         self.projectfolder_name = "_".join(lst)
-        self.create_button.setText('Create projectfolder "{}" {}'.format(self.projectfolder_name, self.dry_run_txt))
-        if elements_count == 3:
+        self.create_button.setText('Create projectfolder "{}" {} {}'.format(self.projectfolder_name, self.dry_run_txt, self.privileges_txt))
+        if elements_count == 3 and self.privileges:
             self.create_button.setEnabled(True)
         else:
             self.create_button.setEnabled(False)
@@ -297,10 +309,6 @@ def main():
         args_txt += '\t{}: {}\n'.format(key, val)
 
     logging.info('Starting Application to create SURF Research Drive project folder with\n{}'.format(args_txt))
-
-    config = configparser.ConfigParser()
-    configfile = args.config_file
-    config.read(configfile)
 
     app = QApplication(sys.argv)
 
