@@ -68,7 +68,7 @@ def main():
     configfile = args.config_file
     config.read(configfile)
 
-    institute = config['API']['environment_domain'].split('.')[0]
+    institute = config['API']['environment_domain'].split('.')[0].lower()
     api_url = 'https://{}/dashboard/api/'.format(config['API']['environment_domain'])
     api_key = config['API']['key']
 
@@ -85,6 +85,7 @@ def main():
 
     logging.info('Institute: {}'.format(institute))
     if institute == 'windesheim':
+        # domains are specified as comma separated list. Split and make sure they are in uppercase
         domains = config['GENERAL']['domains'].upper().split(',')
         mapping = {}
         for key in config['MAPPING']:
@@ -92,18 +93,21 @@ def main():
 
         # derive project number
         logging.info('Adding column "project_number"')
+        # project numbers are defined as 6 digit numbers starting with nonzero
         df['project_number'] = df.name.str.extract(r'(^[1-9]\d{5})')
-        # derive domain
+        # derive domain, being the second element of the underscore separated name
         df['domain'] = df.name.str.extract(r'^\d{4,6}_(' + "|".join(domains) + r')_')
         logging.info('Adding column "domain"')
         # check compliance with name convention
         logging.info('Adding column "name_convention"')
+        # name should start with 6 digit number, followed by underscore and domain code, followed by underscore projectname slug
         df['name_convention'] = df.name.str.contains(r'^\d{6}_(' + r'|'.join(domains) + r')_[0-9a-zA-Z-]')
         # apply mapping of project numbers to domains
         for domain, project_numbers in mapping.items():
             df.loc[df.project_number.isin(list(project_numbers)), 'domain'] = domain
         # derive whether this concerns a test folder
         logging.info('Adding column "test"')
+        # a projectfolder is considered as test if it does not start with a 4-6 digit number OR if both domain and project number is not available
         df['test'] = ~df.name.str.contains(r'(^[1-9]\d{3,5})') | (pandas.isna(df.domain) & pandas.isna(df.project_number))
 
         sort_columns = ['domain', 'project_number', 'owner_name']
