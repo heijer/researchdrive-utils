@@ -275,6 +275,12 @@ def main():
     parser.add_argument('-l', '--log-file', default=None, help='File path to log file')
     args = parser.parse_args()
 
+    config = configparser.ConfigParser()
+    configfile = args.config_file
+    config.read(configfile)
+
+    institute = config['API']['environment_domain'].split('.')[0].lower()
+
     if args.log_file is not None:
         args.log_file = os.path.abspath(args.log_file)
         rootLogger = logging.getLogger()
@@ -299,8 +305,11 @@ def main():
     app = QApplication(sys.argv)
 
 
-    # window = MainWindow(config=config)
-    window = MainWindowWindesheim(config=config)
+    if institute == 'windesheim':
+        window = MainWindowWindesheim(config=config)
+    else:
+        window = MainWindow(config=config)
+
     window.show()
 
     app.exec()
