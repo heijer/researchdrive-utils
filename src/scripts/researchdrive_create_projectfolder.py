@@ -27,7 +27,7 @@ class MainWindow(QMainWindow):
 
         contracts_df = self.RD_API.get_contracts()
         if contracts_df.empty:
-            logging.warning('API user has no privileges to create project folders')
+            logging.warning('Research Drive user has no privileges to create project folders')
             self.privileges = False
             self.privileges_txt = '(insufficient privileges)'
 
@@ -120,12 +120,11 @@ class MainWindow(QMainWindow):
 
         contract_label = QLabel(self.config['CONTRACT']['label'])
         self.contract_widget = QComboBox()
-        contracts_df = self.RD_API.get_contracts()
-        contract_items = []
-        if contracts_df.empty:
-            logging.error('Research Drive user has no privileges to create project folders')
+        if not self.privileges:
             contract_items = ['No privileges']
         else:
+            contracts_df = self.RD_API.get_contracts()
+            contract_items = []
             if 'items' in self.config['CONTRACT']:
                 contract_items = [item for item in self.config['CONTRACT']['items'].split(',') if item in contracts_df.contract_id.values.tolist()]
             if len(contract_items) == 0:
@@ -153,7 +152,8 @@ class MainWindow(QMainWindow):
     def create_button_layout(self):
         horizontal_layout = QHBoxLayout()
 
-        self.create_button = QPushButton('Create projectfolder {}'.format(self.dry_run_txt))
+        self.create_button = QPushButton()
+        self.create_button.setText('Create projectfolder {} {}'.format(self.dry_run_txt, self.privileges_txt))
         self.create_button.setEnabled(False)
         self.create_button.clicked.connect(self.create_button_clicked)
 
