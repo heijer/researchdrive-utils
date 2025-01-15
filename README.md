@@ -119,7 +119,7 @@ pyinstaller --onefile --icon=RDRIVE.png src/scripts/researchdrive_create_project
 ### Example Commands Windows
 
 ```bash
-researchdrive_projectfolders.exe  -c researchdrive_projectfolders.cfg
+researchdrive_projectfolders.exe -c researchdrive_projectfolders.cfg
 researchdrive_report.exe -f "SURF Reporting.xlsx"
 researchdrive_create_projectfolder.exe -c researchdrive_create_projectfolder.cfg
 ```
@@ -127,7 +127,7 @@ researchdrive_create_projectfolder.exe -c researchdrive_create_projectfolder.cfg
 ### Example Commands macOS
 
 ```bash
-researchdrive_projectfolders  -c researchdrive_projectfolders.cfg
+researchdrive_projectfolders -c researchdrive_projectfolders.cfg
 researchdrive_report -f "SURF Reporting.xlsx"
 researchdrive_create_projectfolder -c researchdrive_create_projectfolder.cfg
 ```
