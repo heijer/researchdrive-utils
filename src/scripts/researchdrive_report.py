@@ -109,7 +109,7 @@ def create_html_files(xlsx_file, output_dir):
     idx = df['Shared as'] == 'federated_share'
     df.loc[idx, 'Recipient displayname'] = df[idx]['Recipient']
     # introduce domain column, displaying the domain of the Recipient
-    df['Domain'] = df['Recipient'].apply(lambda s: s.split('@')[1])
+    df['Domain'] = df['Recipient'].apply(lambda s: s.split('@')[1] if '@' in s else '')
 
     for project in pandas.unique(df.Project):
         project_idx = df.Project==project
@@ -126,6 +126,7 @@ def create_html_files(xlsx_file, output_dir):
         html_file = os.path.join(output_dir, '{}_{}.html'.format(project_folder, date_str))
         # write to html file
         with open(html_file, 'w') as fobj:
+            logging.info('Writing {}'.format(html_file))
             fobj.write(df_report.to_html())
 
 def main():
