@@ -38,13 +38,40 @@ def excelwriter(xlsx_file, df_report, sheet_name='Sheet1', autofit=True):
 def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
+    frozen = False
+    if getattr(sys, 'frozen', False):
+        # we are running as executable (pyinstaller)
+        frozen = True
+        base_dir = os.path.dirname(os.path.abspath(sys.executable))
+        base_name = os.path.basename(sys.executable)
+        logging.info('Running Executable:')
+    else:
+        # we are running in a normal Python environment
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        base_name = os.path.basename(__file__)
+        logging.info('Running Script:')
+
+    stem = os.path.splitext(base_name)[0]
+
+    logging.info(' Path: {}'.format(base_dir))
+    logging.info(' Name: {}'.format(base_name))
+    logging.info(' Stem: {}'.format(stem))
+
+    default_configfile = os.path.join(base_dir, stem + '.cfg')
+    default_logfile = os.path.join(base_dir, stem + '.log')
+    if not os.path.exists(default_configfile):
+        default_configfile = None
+
+    downloads_folder = os.path.join(os.path.expanduser("~"), 'Downloads')
+    default_outputdir = base_dir
+    if os.path.exists(downloads_folder):
+        default_outputdir = downloads_folder
+
     parser = argparse.ArgumentParser(
         description='Query SURF Research Drive API to get an overview of project folders')
-    default_configfile = os.path.splitext(os.path.abspath(os.path.basename(__file__)))[0] + '.cfg'
-
     parser.add_argument('-c', '--config-file', default=default_configfile, help='Config file')
-    parser.add_argument('-o', '--output-dir', default=None, help='Directory to put the resulting .xlsx file in')
-    parser.add_argument('-l', '--log-file', default=None, help='File path to log file')
+    parser.add_argument('-o', '--output-dir', default=default_outputdir, help='Directory to put the resulting .xlsx file in')
+    parser.add_argument('-l', '--log-file', default=default_logfile, help='File path to log file')
     args = parser.parse_args()
 
     if args.log_file is not None:
@@ -64,9 +91,15 @@ def main():
 
     logging.info('Starting Application to create overview of SURF Research Drive project folders with\n{}'.format(args_txt))
 
+    if args.config_file is None:
+        logging.error('No config file provided. EXITING...')
+        return
+    if not os.path.exists(args.config_file):
+        logging.error('Config file "{}" does not exist. EXITING...'.format(args.config_file))
+        return
+
     config = configparser.ConfigParser()
-    configfile = args.config_file
-    config.read(configfile)
+    config.read(args.config_file)
 
     institute = config['API']['environment_domain'].split('.')[0].lower()
     api_url = 'https://{}/dashboard/api/'.format(config['API']['environment_domain'])
@@ -76,10 +109,6 @@ def main():
     df = ResearchDriveAPI.get_projectfolders()
 
     output_dir = args.output_dir
-    if output_dir is None:
-        output_dir = os.path.abspath('.')
-        # os.path.join(, os.path.splitext(os.path.basename(__file__))[0])
-
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
