@@ -5,6 +5,7 @@ import argparse
 import os
 import datetime
 import pandas
+import glob
 from qtpy.QtWidgets import QApplication, QMainWindow, QPushButton, QMessageBox, QWidget, QVBoxLayout, QLabel, QFileDialog
 
 
@@ -31,7 +32,7 @@ class MainWindow(QMainWindow):
         vertical_layout.addWidget(self.selectfile_button)
         vertical_layout.addWidget(self.selectfile_label)
 
-        self.selectdir_button = QPushButton('Select directory')
+        self.selectdir_button = QPushButton('Select directory for resulting .html files')
         self.selectdir_button.clicked.connect(self.selectdir)
 
         self.selectdir_label = QLabel('')
@@ -71,6 +72,17 @@ class MainWindow(QMainWindow):
 
     def process_reporting(self):
         create_html_files(xlsx_file=self.selectfile_label.text(), output_dir=self.selectdir_label.text())
+
+
+def get_most_recent_file(pattern):
+    # Get all matching files
+    files = glob.glob(pattern)
+    if not files:
+        return None  # Return None if no files match
+
+    # Find the most recently modified file
+    most_recent_file = max(files, key=os.path.getmtime)
+    return most_recent_file
 
 
 def create_html_files(xlsx_file, output_dir):
@@ -132,13 +144,40 @@ def create_html_files(xlsx_file, output_dir):
 def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
+    frozen = False
+    if getattr(sys, 'frozen', False):
+        # we are running as executable (pyinstaller)
+        frozen = True
+        base_dir = os.path.dirname(os.path.abspath(sys.executable))
+        base_name = os.path.basename(sys.executable)
+        logging.info('Running Executable:')
+    else:
+        # we are running in a normal Python environment
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        base_name = os.path.basename(__file__)
+        logging.info('Running Script:')
+
+    stem = os.path.splitext(base_name)[0]
+
+    logging.info(' Path: {}'.format(base_dir))
+    logging.info(' Name: {}'.format(base_name))
+    logging.info(' Stem: {}'.format(stem))
+
+    default_file = 'SURF Reporting.xlsx'
+    default_input_dir = base_dir
+    downloads_folder = os.path.join(os.path.expanduser("~"), 'Downloads')
+    if os.path.exists(downloads_folder):
+        default_file = get_most_recent_file(os.path.join(downloads_folder, 'SURF Reportin*.xlsx'))
+        default_input_dir = downloads_folder
+    default_logfile = os.path.join(base_dir, stem + '.log')
+
     parser = argparse.ArgumentParser(
         description='Process SURF Research Drive reporting .xlsx file to an autorisation overview')
-    parser.add_argument('-f', '--file', default='SURF Reporting.xlsx', help='Filename of source .xlsx file')
-    parser.add_argument('-i', '--input-dir', default=None, help='Directory to expect the source .xlsx file in')
+    parser.add_argument('-f', '--file', default=default_file, help='Filename of source .xlsx file')
+    parser.add_argument('-i', '--input-dir', default=default_input_dir, help='Directory to expect the source .xlsx file in')
     parser.add_argument('-o', '--output-dir', default=None, help='Directory to put the resulting .html files in')
     parser.add_argument('-g', '--gui', action='store_true', help='Use GUI')
-    parser.add_argument('-l', '--log-file', default=None, help='File path to log file')
+    parser.add_argument('-l', '--log-file', default=default_logfile, help='File path to log file')
     args = parser.parse_args()
 
     if args.log_file is not None:
@@ -151,6 +190,11 @@ def main():
                                                backupCount=5)
         fileHandler.setFormatter(logFormatter)
         rootLogger.addHandler(fileHandler)
+
+    if frozen and len(sys.argv) == 1 and not os.path.exists(args.file):
+        # when running as executable, without arguments and with the default source .xlsx file not existing
+        logging.info('"{}" does not exist; open GUI'.format(args.file))
+        args.gui = True
 
     args_txt = ''
     for key,val in vars(args).items():
