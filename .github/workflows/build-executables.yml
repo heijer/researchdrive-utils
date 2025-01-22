@@ -1,0 +1,58 @@
+name: Build Executables
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            copy_command: cp
+          - os: macos-latest
+            copy_command: cp
+          - os: windows-latest
+            copy_command: copy
+
+    steps:
+    # Step 1: Checkout code
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # Step 2: Set up Python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    # Step 3: Install dependencies
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install -r requirements.txt  # Install project dependencies
+
+    # Step 4: Build Executables
+    - name: Build Executables with PyInstaller
+      run: |
+        pyinstaller --onefile --icon=RDRIVE.png src/scripts/researchdrive_projectfolders.py
+        pyinstaller --onefile --icon=RDRIVE.png src/scripts/researchdrive_report.py
+        pyinstaller --onefile --icon=RDRIVE.png src/scripts/researchdrive_create_projectfolder.py
+
+    # Step 5: Copy Additional Files
+    - name: Copy Template Files
+      run: |
+        ${{ matrix.copy_command }} src/scripts/researchdrive_projectfolders.cfg.tmpl dist/researchdrive_projectfolders.cfg
+        ${{ matrix.copy_command }} src/scripts/researchdrive_create_projectfolder.cfg.tmpl dist/researchdrive_create_projectfolder.cfg
+
+    # Step 6: Upload Artifact
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: executable-artifacts-${{ matrix.os }}
+        path: dist/*
