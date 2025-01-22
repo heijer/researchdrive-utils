@@ -13,6 +13,7 @@ from researchdrive import ResearchDrive
 class MainWindow(QMainWindow):
     config = None
     projectfolder_name = None
+    maxlength = 50
     dry_run_txt = ''
     privileges_txt = ''
     privileges = True
@@ -36,6 +37,9 @@ class MainWindow(QMainWindow):
             if self.RD_API.dry_run:
                 logging.info('Research Drive API is called in DRY-RUN mode')
                 self.dry_run_txt = '(dry run)'
+
+        if 'maxlength' in config['NAME']:
+            self.maxlength = int(config['NAME']['maxlength'])
 
         self.setWindowTitle(config['GENERAL']['title'])
 
@@ -75,6 +79,7 @@ class MainWindow(QMainWindow):
 
         name_label = QLabel(self.config['NAME']['label'])
         self.name_widget = QLineEdit()
+        self.name_widget.setMaxLength(self.maxlength)  # Limit input to number of characters
         self.name_widget.textChanged.connect(self.name_changed)
 
         horizontal_layout.addWidget(name_label)
@@ -182,6 +187,9 @@ class MainWindow(QMainWindow):
             project_name = re.sub(r'(?<=\w)\W+(?=\w)', '-', project_name)
             lst.append(project_name)
         self.projectfolder_name = "_".join(lst)
+        # adjust maximum number of characters
+        maxlength = self.maxlength - len(self.projectfolder_name) + len(self.name_widget.text())
+        self.name_widget.setMaxLength(maxlength)
         self.create_button.setText('Create projectfolder "{}" {} {}'.format(self.projectfolder_name, self.dry_run_txt, self.privileges_txt))
         if elements_count == 1 and self.privileges:
             self.create_button.setEnabled(True)
@@ -245,6 +253,7 @@ class MainWindowWindesheim(MainWindow):
 
         name_label = QLabel(self.config['NAME']['label'])
         self.name_widget = QLineEdit()
+        self.name_widget.setMaxLength(self.maxlength)  # Limit input to number of characters
         self.name_widget.textChanged.connect(self.name_changed)
 
         horizontal_layout.addWidget(project_number_label)
@@ -277,6 +286,9 @@ class MainWindowWindesheim(MainWindow):
             project_name = re.sub(r'(?<=\w)\W+(?=\w)', '-', project_name)
             lst.append(project_name)
         self.projectfolder_name = "_".join(lst)
+        # adjust maximum number of characters
+        maxlength = self.maxlength - len(self.projectfolder_name) + len(self.name_widget.text())
+        self.name_widget.setMaxLength(maxlength)
         self.create_button.setText('Create projectfolder "{}" {} {}'.format(self.projectfolder_name, self.dry_run_txt, self.privileges_txt))
         if elements_count == 3 and self.privileges:
             self.create_button.setEnabled(True)
