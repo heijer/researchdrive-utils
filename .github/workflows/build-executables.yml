@@ -35,18 +35,14 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller
+        pip install Pillow
         pip install -r requirements.txt  # Install project dependencies
 
     # Step 4: Convert PNG to ICO (Windows Only)
     - name: Convert PNG to ICO
       if: matrix.os == 'windows-latest'
       run: |
-        pip install Pillow
-        python -c "
-import sys
-from PIL import Image
-Image.open('RDRIVE.png').save('RDRIVE.ico')
-        "
+        python -c "from PIL import Image; Image.open('RDRIVE.png').save('RDRIVE.ico')"
 
     # Step 5: Build Executables
     - name: Build Executables with PyInstaller
