@@ -92,12 +92,20 @@ class MainWindow(QMainWindow):
             project_owner_usernames = [item for item in self.config['PROJECT_OWNER']['items'].split(',') if item in accounts_df.username.values.tolist()]
         if len(project_owner_usernames) == 0:
             project_owner_usernames = me_df.username.values.tolist()
-        self.owner_df = accounts_df[accounts_df.username.isin(project_owner_usernames)]
-        project_owner_items = [self.owner_df[self.owner_df['username']==username]['name'].values[0] for username in project_owner_usernames]
+        self.owner_df = accounts_df.loc[accounts_df.username.isin(project_owner_usernames), ['username', 'name']]
+        # there might be users with the same name but different usernames
+        # (e.g. an institutional as well as a private email address)
+        self.owner_df['is_duplicate_name'] = self.owner_df['name'].duplicated(keep=False)
+        # add a text column which includes the username in case of duplicate names and just the name otherwise
+        self.owner_df['text'] = self.owner_df.apply(lambda row:
+                                                    f"{row['name']} ({row['username']})" if row['is_duplicate_name']
+                                                    else row['name'], axis=1)
 
         project_owner_label = QLabel(self.config['PROJECT_OWNER']['label'])
         self.project_owner_widget = QComboBox()
-        self.project_owner_widget.addItems(project_owner_items)
+        # add items in a loop and include the corresponding username as related data
+        for _, row in self.owner_df.iterrows():
+            self.project_owner_widget.addItem(row['text'], {'username': row['username']})
 
         horizontal_layout.addWidget(project_owner_label)
         horizontal_layout.addWidget(self.project_owner_widget)
@@ -181,6 +189,7 @@ class MainWindow(QMainWindow):
             self.create_button.setEnabled(False)
 
     def create_button_clicked(self, s):
+        owner = self.project_owner_widget.currentData()
 
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Create folder?")
@@ -192,7 +201,7 @@ class MainWindow(QMainWindow):
         else:
             create = True
             dlg.setText("Create projectfolder\nName: {}\nOwner: {}\nContract: {}\nQuotum: {}".format(self.projectfolder_name,
-                                                                                         self.project_owner_widget.currentText(),
+                                                                                         owner,
                                                                                          self.contract_widget.currentText(),
                                                                                          self.quotum_widget.currentText()))
         dlg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
@@ -203,7 +212,7 @@ class MainWindow(QMainWindow):
                 quotum = int(self.quotum_widget.currentText().split(' ')[0])
                 reponse = self.RD_API.create_folder(name=self.projectfolder_name,
                                           description=self.description_widget.text().strip(),
-                                          owner={'name': self.project_owner_widget.currentText()},
+                                          owner=owner,
                                           contract={'contract_id': self.contract_widget.currentText()},
                                           quotum=quotum)
                 logging.info(reponse)
