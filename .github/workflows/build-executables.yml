@@ -10,14 +10,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [windows-latest, macos-latest]
         include:
-          - os: ubuntu-latest
-            copy_command: cp
           - os: macos-latest
             copy_command: cp
+            icon: RDRIVE.png
           - os: windows-latest
             copy_command: copy
+            icon: RDRIVE.ico
 
     steps:
     # Step 1: Checkout code
@@ -37,20 +37,31 @@ jobs:
         pip install pyinstaller
         pip install -r requirements.txt  # Install project dependencies
 
-    # Step 4: Build Executables
+    # Step 4: Convert PNG to ICO (Windows Only)
+    - name: Convert PNG to ICO
+      if: matrix.os == 'windows-latest'
+      run: |
+        pip install Pillow
+        python -c "
+import sys
+from PIL import Image
+Image.open('RDRIVE.png').save('RDRIVE.ico')
+        "
+
+    # Step 5: Build Executables
     - name: Build Executables with PyInstaller
       run: |
-        pyinstaller --onefile --icon=RDRIVE.png src/scripts/researchdrive_projectfolders.py
-        pyinstaller --onefile --icon=RDRIVE.png src/scripts/researchdrive_report.py
-        pyinstaller --onefile --icon=RDRIVE.png src/scripts/researchdrive_create_projectfolder.py
+        pyinstaller --onefile --icon=${{ matrix.icon }} src/scripts/researchdrive_projectfolders.py
+        pyinstaller --onefile --icon=${{ matrix.icon }} src/scripts/researchdrive_report.py
+        pyinstaller --onefile --icon=${{ matrix.icon }} src/scripts/researchdrive_create_projectfolder.py
 
-    # Step 5: Copy Additional Files
+    # Step 6: Copy Additional Files
     - name: Copy Template Files
       run: |
         ${{ matrix.copy_command }} src/scripts/researchdrive_projectfolders.cfg.tmpl dist/researchdrive_projectfolders.cfg
         ${{ matrix.copy_command }} src/scripts/researchdrive_create_projectfolder.cfg.tmpl dist/researchdrive_create_projectfolder.cfg
 
-    # Step 6: Upload Artifact
+    # Step 7: Upload Artifact
     - name: Upload Artifact
       uses: actions/upload-artifact@v3
       with:
