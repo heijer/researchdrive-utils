@@ -137,9 +137,8 @@ def create_html_files(xlsx_file, output_dir):
         # define full path of html file
         html_file = os.path.join(output_dir, '{}_{}.html'.format(project_folder, date_str))
         # write to html file
-        with open(html_file, 'w') as fobj:
-            logging.info('Writing {}'.format(html_file))
-            fobj.write(df_report.to_html())
+        logging.info('Writing {}'.format(html_file))
+        df_report.to_html(html_file, encoding="utf-8")
 
 def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
