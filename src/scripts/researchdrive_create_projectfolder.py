@@ -4,6 +4,7 @@ import argparse
 import sys
 from qtpy.QtWidgets import QApplication, QMainWindow, QPushButton, QMessageBox, QHBoxLayout, QWidget, QVBoxLayout,\
     QLineEdit, QLabel, QComboBox
+from qtpy.QtGui import QIntValidator
 import re
 import os
 import configparser
@@ -234,11 +235,16 @@ class MainWindowWindesheim(MainWindow):
     def create_name_layout(self):
         horizontal_layout = QHBoxLayout()
 
-        project_number_label = QLabel("Project number")
-        self.project_number_widget = QLineEdit("")
+        project_number_label = QLabel('Project number')
+        self.project_number_widget = QLineEdit()
+        self.project_number_widget.setPlaceholderText('6 digits')
+        # Apply validation: must be integer and no more than 6 digits
+        project_number_validator = QIntValidator(0, 999999, self)
+        self.project_number_widget.setValidator(project_number_validator)
+        # trigger when changing
         self.project_number_widget.textChanged.connect(self.name_changed)
 
-        domain_label = QLabel("Domain")
+        domain_label = QLabel('Domain')
         self.domain_widget = QComboBox()
         domain_default = ''
         domain_items = [domain_default] + [s.strip() for s in self.config['NAME']['domain_items'].split(',')]
