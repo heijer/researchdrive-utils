@@ -9,6 +9,7 @@ import re
 import os
 import configparser
 from researchdrive import ResearchDrive
+import pandas
 
 
 class MainWindow(QMainWindow):
@@ -27,8 +28,8 @@ class MainWindow(QMainWindow):
         api_key  = config['API']['key']
         self.RD_API = ResearchDrive(url=api_url, token=api_key)
 
-        contracts_df = self.RD_API.get_contracts()
-        if contracts_df.empty:
+        self.contracts_df = self.RD_API.get_contracts()
+        if self.contracts_df.empty:
             logging.warning('Research Drive user has no privileges to create project folders')
             self.privileges = False
             self.privileges_txt = '(insufficient privileges)'
@@ -111,7 +112,7 @@ class MainWindow(QMainWindow):
         self.project_owner_widget = QComboBox()
         # add items in a loop and include the corresponding username as related data
         for _, row in self.owner_df.iterrows():
-            self.project_owner_widget.addItem(row['text'], {'username': row['username']})
+            self.project_owner_widget.addItem(row['text'], {'username': row['username'], 'text': row['text']})
 
         horizontal_layout.addWidget(project_owner_label)
         horizontal_layout.addWidget(self.project_owner_widget)
@@ -135,28 +136,40 @@ class MainWindow(QMainWindow):
         contract_label = QLabel(self.config['CONTRACT']['label'])
         self.contract_widget = QComboBox()
         if not self.privileges:
-            contract_items = ['No privileges']
+            self.contract_widget.setPlaceholderText('No privileges')
         else:
-            contracts_df = self.RD_API.get_contracts()
-            contract_items = []
-            if 'items' in self.config['CONTRACT']:
-                contract_items = [item for item in self.config['CONTRACT']['items'].split(',') if item in contracts_df.contract_id.values.tolist()]
-            if len(contract_items) == 0:
-                contract_items = contracts_df.contract_id.values.tolist()
-        self.contract_widget.addItems(contract_items)
+            # add items in a loop and include the corresponding contract_id, id and quotum options as related data
+            for _, row in self.contracts_df.iterrows():
+                self.contract_widget.addItem(row['contract_id'], {'contract_id': row['contract_id'],
+                                                                  'id': row['id'],
+                                                                  'quotum_option': row['quotum_option']})
+
+        self.contract_widget.currentTextChanged.connect(self.contract_changed)
 
         horizontal_layout.addWidget(contract_label)
         horizontal_layout.addWidget(self.contract_widget)
 
         return horizontal_layout
 
+    def add_quotum_options(self):
+        """Add items to quotum combobox"""
+        current_contract = self.contract_widget.currentData()
+        for item in current_contract['quotum_option']:
+            if item['quotum'] is None:
+                # Skip custom input as it is not implemented
+                continue
+            self.quotum_widget.addItem(item['trans'], {'quotum': item['quotum'],
+                                                       'trans': item['trans']})
+
     def create_quotum_layout(self):
         horizontal_layout = QHBoxLayout()
 
         quotum_label = QLabel(self.config['QUOTUM']['label'])
         self.quotum_widget = QComboBox()
-        quotum_items = self.config['QUOTUM']['items'].split(',')
-        self.quotum_widget.addItems(quotum_items)
+        if not self.privileges:
+            self.quotum_widget.setPlaceholderText('No privileges')
+        else:
+            self.add_quotum_options()
 
         horizontal_layout.addWidget(quotum_label)
         horizontal_layout.addWidget(self.quotum_widget)
@@ -174,6 +187,25 @@ class MainWindow(QMainWindow):
         horizontal_layout.addWidget(self.create_button)
 
         return horizontal_layout
+
+    def contract_changed(self):
+        # Store the currently selected values of contract and quotum
+        current_contract = self.contract_widget.currentData()
+        current_quotum = self.quotum_widget.currentData()['quotum']
+
+        # Clear the existing items
+        self.quotum_widget.clear()
+
+        # Add new options
+        self.add_quotum_options()
+
+        quotum_values = [self.quotum_widget.itemData(i).get('quotum') for i in range(self.quotum_widget.count())]
+
+        if current_quotum in quotum_values:
+            index = quotum_values.index(current_quotum)
+            self.quotum_widget.setCurrentIndex(index)
+        else:
+            self.quotum_widget.setCurrentIndex(0)
 
     def name_changed(self):
         lst = []
@@ -199,6 +231,8 @@ class MainWindow(QMainWindow):
 
     def create_button_clicked(self, s):
         owner = self.project_owner_widget.currentData()
+        contract = self.contract_widget.currentData()
+        quotum = self.quotum_widget.currentData()
 
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Create folder?")
@@ -210,20 +244,19 @@ class MainWindow(QMainWindow):
         else:
             create = True
             dlg.setText("Create projectfolder\nName: {}\nOwner: {}\nContract: {}\nQuotum: {}".format(self.projectfolder_name,
-                                                                                         owner,
-                                                                                         self.contract_widget.currentText(),
-                                                                                         self.quotum_widget.currentText()))
+                                                                                         owner['text'],
+                                                                                         contract['contract_id'],
+                                                                                         quotum['trans']))
         dlg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         button = dlg.exec()
 
         if button == QMessageBox.Ok:
             if create:
-                quotum = int(self.quotum_widget.currentText().split(' ')[0])
                 reponse = self.RD_API.create_folder(name=self.projectfolder_name,
                                           description=self.description_widget.text().strip(),
-                                          owner=owner,
-                                          contract={'contract_id': self.contract_widget.currentText()},
-                                          quotum=quotum)
+                                          owner={'username': owner['username']},
+                                          contract={'contract_id': contract['contract_id']},
+                                          quotum=quotum['quotum'])
                 logging.info(reponse)
 
 
